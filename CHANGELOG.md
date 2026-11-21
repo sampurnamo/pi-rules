@@ -1,0 +1,124 @@
+# Changelog
+
+## [0.1.11] - 2026-08-26
+
+### Bug Fixes
+
+- *(widget)* Defer applied-rules annotation to first context event
+
+## [0.1.10] - 2026-08-09
+
+### Bug Fixes
+
+- *(widget)* Dedupe applied-rules annotations within an agent run
+
+## [0.1.9] - 2026-08-07
+
+### Features
+
+- Add ignorePath frontmatter and applied-rules chat annotation
+
+## [0.1.8] - 2026-07-02
+
+### Bug Fixes
+
+- Use extension config files
+
+## [0.1.7] - 2026-07-02
+
+### Features
+
+- Use piRules settings namespace
+
+## [0.1.6] - 2026-07-01
+
+### Documentation
+
+- Rewrite README and add ROADMAP
+
+### Features
+
+- Persist rule recommendations
+- *(domain)* Add guard frontmatter and full-injection tracking
+- *(pi-rules)* Add write guard, dynamic injection toggle, and persistent config
+- *(pi-rules)* Add interactive mode and write-guard commands
+
+## [0.1.5] - 2026-06-19
+
+### Features
+
+- *(pi-rules)* Improve recommendation system with path filtering, preview, and display enhancements
+
+## [0.1.4] - 2026-06-16
+
+### Features
+
+- Replace auto-update maintainer with recommend mode
+
+## [0.1.3] - 2026-06-16
+
+### Bug Fixes
+
+- Add GITHUB_TOKEN to release-please workflow
+- Simplify release-please to release-type only
+- Match release-please config to reference implementation
+
+### Features
+
+- Add hot reload, commitlint, symlink dedup, doctor command, release-please, and e2e tests
+
+### Miscellaneous Tasks
+
+- Auto-generate CHANGELOG.md on release via git-cliff
+- Remove emoji icons from changelog groups
+
+### Revert
+
+- Remove release-please, restore manual workflow_dispatch release flow
+
+## [0.1.2] - 2026-06-15
+
+### Bug Fixes
+
+- Remove unused activeRuns variable and fix formatting
+
+### Refactor
+
+- Simplify UI and improve powerline-footer integration
+
+## [0.1.1] - 2026-06-15
+
+### Bug Fixes
+
+- Regenerate package-lock.json after removing dependencies
+- Use Node 22 in CI (peer deps require >=22.19)
+- Use npm install instead of npm ci in CI
+- Clean working directory before npm version in release
+- Separate npm publish from GitHub Release creation
+
+### Documentation
+
+- README, AGENTS.md, CHANGELOG, CONTRIBUTING, scan script
+- Rewrite README with updated frontmatter reference
+
+### Features
+
+- *(shared)* Zero-dependency utility layer
+- *(domain)* Core rule engine and matching logic
+- *(features,app)* Operational workflows and runtime config
+- *(pi)* Extension entry point with lifecycle hooks and commands
+- *(skills)* Init-advanced and rules-maintainer skills
+
+### Miscellaneous Tasks
+
+- Project scaffolding and build configuration
+- GitHub Actions CI/CD pipeline
+- Add auto release notes to publish workflow
+- Simplify release to single button click
+- Add alpha/beta prerelease options to release workflow
+- Reset version to 0.1.0
+
+### Testing
+
+- Comprehensive test suite (209 tests, 21 files)
+
