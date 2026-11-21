@@ -83,6 +83,30 @@ summary: G
 		expect(resultObj.systemPrompt).toContain("## Rule: .pi/rules/global.md");
 	});
 
+	it("injects always-apply rules when a custom message starts a turn without a prompt", async () => {
+		const projectDir = makeTempProject("inject-custom");
+		writeFileSync(
+			resolve(projectDir, ".pi/rules/global.md"),
+			"---\nalwaysApply: true\nsummary: Global\n---\n# Global body",
+		);
+		const harness = createFakePi();
+		piRulesExtension(harness.pi);
+
+		const result = await harness.emit(
+			"before_agent_start",
+			{
+				type: "before_agent_start",
+				messageType: "custom",
+				message: { role: "custom", customType: "test", content: "continue", display: false },
+				systemPrompt: "Base prompt.",
+				systemPromptOptions: { contextFiles: [] },
+			},
+			harness.makeCtx({ cwd: projectDir }),
+		);
+
+		expect(result).toMatchObject({ systemPrompt: expect.stringContaining("Global body") });
+	});
+
 	it("injects scoped rules when the prompt references a matching path", async () => {
 		const projectDir = makeTempProject("inject-scoped");
 		writeFileSync(

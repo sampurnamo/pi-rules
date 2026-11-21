@@ -212,7 +212,8 @@ export default function piRulesExtension(pi: ExtensionAPI): void {
 			return undefined;
 		}
 
-		const codeRelated = isCodeRelatedPrompt(event.prompt);
+		const prompt = event.prompt ?? "";
+		const codeRelated = isCodeRelatedPrompt(prompt);
 
 		// Build set of context file real paths to detect AGENTS.md / CLAUDE.md overlap
 		const contextFileRealPaths = new Set<string>();
@@ -225,7 +226,7 @@ export default function piRulesExtension(pi: ExtensionAPI): void {
 			}
 		}
 
-		const promptPaths = extractPromptPaths(event.prompt)
+		const promptPaths = extractPromptPaths(prompt)
 			.map(normalizeCandidatePath)
 			.filter((path): path is string => path !== undefined);
 		const baseTargets = dedupePaths([
@@ -249,7 +250,7 @@ export default function piRulesExtension(pi: ExtensionAPI): void {
 			ctx.cwd,
 			targetPaths,
 			contextFileRealPaths,
-			codeRelated ? event.prompt : undefined,
+			codeRelated ? prompt : undefined,
 		);
 		const matchElapsedMs = performance.now() - matchStart;
 
