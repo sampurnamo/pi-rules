@@ -29,12 +29,13 @@ jobs:
           node-version: 22
       - name: Apply the fix to the latest upstream release
         id: candidate
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           upstream=https://github.com/quanpersie2001/pi-rules.git
           fix=06e79cd1fcf1404e655686ca05aa66048c9089ec
-          tag=$(curl --fail --silent --show-error --retry 3 \
-            https://api.github.com/repos/quanpersie2001/pi-rules/releases/latest | jq -er '.tag_name')
+          tag=$(gh api repos/quanpersie2001/pi-rules/releases/latest --jq .tag_name)
           [[ "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
           git fetch --no-tags "$upstream" "refs/tags/$tag"
           release=$(git rev-parse 'FETCH_HEAD^{commit}')
