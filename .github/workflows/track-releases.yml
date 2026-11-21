@@ -1,0 +1,131 @@
+name: Track upstream releases
+
+on:
+  schedule:
+    - cron: "23 8 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pi-rules-stable
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: github.repository == 'sampurnamo/pi-rules' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    outputs:
+      upstream: ${{ steps.candidate.outputs.upstream }}
+      previous: ${{ steps.candidate.outputs.previous }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Apply the fix to the latest upstream release
+        id: candidate
+        run: |
+          set -euo pipefail
+          upstream=https://github.com/quanpersie2001/pi-rules.git
+          fix=06e79cd1fcf1404e655686ca05aa66048c9089ec
+          tag=$(curl --fail --silent --show-error --retry 3 \
+            https://api.github.com/repos/quanpersie2001/pi-rules/releases/latest | jq -er '.tag_name')
+          [[ "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          git fetch --no-tags "$upstream" "refs/tags/$tag"
+          release=$(git rev-parse 'FETCH_HEAD^{commit}')
+          previous=$(git ls-remote --heads origin refs/heads/stable | cut -f1)
+          if [[ -n "$previous" ]]; then
+            git fetch --no-tags origin refs/heads/stable
+            test "$(git rev-parse FETCH_HEAD)" = "$previous"
+            read -r old_tag old_release < <(git show "$previous:.upstream-release")
+            [[ "$old_release" =~ ^[0-9a-f]{40}$ ]]
+            if [[ "$tag" == "$old_tag" ]]; then
+              test "$release" = "$old_release"
+              exit 0
+            fi
+            test "$(printf '%s\n' "$tag" "$old_tag" | sort -V | tail -n1)" = "$tag"
+            git merge-base --is-ancestor "$old_release" "$release"
+          fi
+          git checkout --detach "$release"
+          if ! git format-patch -1 "$fix" --stdout | git apply; then
+            echo "::error::The prompt fix no longer applies to $tag. Review upstream before updating stable."
+            exit 1
+          fi
+          echo "upstream=$tag $release" >> "$GITHUB_OUTPUT"
+          echo "previous=$previous" >> "$GITHUB_OUTPUT"
+      - name: Run checks and package the verified build
+        if: steps.candidate.outputs.upstream != ''
+        run: |
+          set -euo pipefail
+          npm install --no-audit --no-fund
+          npm run check
+          node --check dist/extensions/pi-rules.js
+          filename=$(npm pack --ignore-scripts --pack-destination "$RUNNER_TEMP" --json | jq -er '.[0].filename')
+          [[ "$filename" == "$(basename "$filename")" && "$filename" == *.tgz ]]
+          mv -- "$RUNNER_TEMP/$filename" "$RUNNER_TEMP/pi-rules.tgz"
+      - uses: actions/upload-artifact@v4
+        if: steps.candidate.outputs.upstream != ''
+        with:
+          name: verified-pi-rules
+          path: ${{ runner.temp }}/pi-rules.tgz
+          if-no-files-found: error
+
+  publish:
+    needs: build
+    if: needs.build.outputs.upstream != ''
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/download-artifact@v4
+        with:
+          name: verified-pi-rules
+          path: ${{ runner.temp }}
+      - name: Promote the tested package to stable
+        env:
+          UPSTREAM_RELEASE: ${{ needs.build.outputs.upstream }}
+          PREVIOUS: ${{ needs.build.outputs.previous }}
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          if [[ -n "$PREVIOUS" ]]; then
+            git fetch --no-tags origin refs/heads/stable
+            test "$(git rev-parse FETCH_HEAD)" = "$PREVIOUS"
+            git switch --detach "$PREVIOUS"
+            # Stable is a generated package snapshot, not a source branch.
+            git rm -rf .
+          else
+            git switch --orphan stable
+          fi
+          python3 - <<'PY'
+          import os
+          import tarfile
+          from pathlib import PurePosixPath
+
+          with tarfile.open(os.path.join(os.environ["RUNNER_TEMP"], "pi-rules.tgz")) as archive:
+              for member in archive.getmembers():
+                  parts = PurePosixPath(member.name).parts
+                  if (
+                      not member.isfile()
+                      or len(parts) < 2
+                      or parts[0] != "package"
+                      or any(part in ("..", ".git", ".github") for part in parts)
+                  ):
+                      raise SystemExit(f"Unexpected package entry: {member.name}")
+                  member.name = "/".join(parts[1:])
+                  archive.extract(member, filter="data")
+          PY
+          test -s dist/extensions/pi-rules.js
+          printf '%s\n' "$UPSTREAM_RELEASE" > .upstream-release
+          git add -- .
+          git commit -m "build: promote $UPSTREAM_RELEASE"
+          git push origin HEAD:refs/heads/stable
